@@ -35,6 +35,7 @@ def rc_server_list(main, q):
         server = q.pop()
         if server not in main.server_list:
             main.server_list.append(server)
+        file_io.write_data(server_list, ''.join(server_list)
 
 #todo
 def send_server_list(main):
@@ -100,6 +101,7 @@ def rc_meta_data_rq(main, q, client):
 
 
 def threaded_client(main, client, address):
+    print("connected to ",address)
     send(main, client, "accepted")
     buffer = ""
     while "msgend" not in buffer:
@@ -110,7 +112,7 @@ def threaded_client(main, client, address):
 
     while q.has_items():
         command = q.pop()
-
+        print(command)
         if address in main.server_list:
             # commands available to known addresses
 
