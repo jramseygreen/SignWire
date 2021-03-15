@@ -31,7 +31,7 @@ def write_data(name, content):
         f = open(name, "w")  # open file for writing
     except:
         f = open(name, "x")  # create file
-        f = open(name, "w")  # then openf
+        f = open(name, "w")  # then open
 
     f.write(content)
     f.close()
