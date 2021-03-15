@@ -159,7 +159,7 @@ def start(main):
     port = main.port
 
     # join network
-    if main.server_list:
+    if main.server_list != []:
         for server in main.server_list:
             try:
                 print(main.server_list)
