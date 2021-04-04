@@ -4,11 +4,12 @@ import json
 
 
 class Server:
-    def __init__(self, meta_data):
+    def __init__(self, meta_data, server_list):
         self.host = '0.0.0.0'
         self.port = 10000
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.meta_data = meta_data
+        self.server_list = server_list
         self.driver()
 
 
@@ -20,8 +21,11 @@ class Server:
 
         while True:
             c, addr = self.s.accept()
+            if addr[0] not in self.server_list:
+                self.server_list.append(addr[0])
+
             print("accepted", c, addr)
-            x = threading.Thread(target=clientThread, args=(c, addr, self.meta_data))
+            x = threading.Thread(target=clientThread, args=(c, addr, self.meta_data, self.server_list))
             x.start()
 
 
@@ -46,8 +50,9 @@ def clientThread(c, addr, meta_data):
     print("closed client", c, addr)
     c.close()
 
+
 def send_meta(c, meta_data):
-    c.sendall(("sending meta").encode())
+    c.sendall((meta_data["timestamp"]).encode())
     if (c.recv(1024).decode() == "ready"):
         payload = json.dumps(meta_data)
         c.sendall(payload.encode())

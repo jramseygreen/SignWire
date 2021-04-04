@@ -4,6 +4,7 @@ import time
 
 import threading
 import server
+import Client
 #import client
 
 def put_meta():
@@ -30,21 +31,21 @@ def put_meta():
     return hash_table
 
 
-def serverThread(meta_data):
-    s = server.Server(meta_data)
+def serverThread(meta_data, server_list):
+    server.Server(meta_data, server_list)
 
 
-def clientThread(meta_data):
-    client.Client(meta_data)
+def clientThread(meta_data, server_list):
+    Client.Client(meta_data, server_list)
 
 
 meta_data = put_meta()
-# scan all files in tree
+server_list = []
 
 #print(meta_data)
 
-t1 = threading.Thread(target=serverThread, args=(meta_data,))
+t1 = threading.Thread(target=serverThread, args=(meta_data, server_list,))
 t1.start()
 
-#client = threading.Thread(target=clientThread, args=(meta_data,))
-#client.start()
+t2 = threading.Thread(target=clientThread, args=(meta_data, server_list,))
+t2.start()
