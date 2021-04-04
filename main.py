@@ -27,7 +27,7 @@ def put_meta():
                 else:
                     hash_table[md5] = [filepath]
 
-    hash_table["timestamp"] = time.time()
+    hash_table["timestamp"] = str(time.time())
     return hash_table
 
 
@@ -40,7 +40,7 @@ def clientThread(meta_data, server_list):
 
 
 meta_data = put_meta()
-server_list = []
+server_list = ['192.168.0.31']
 
 #print(meta_data)
 

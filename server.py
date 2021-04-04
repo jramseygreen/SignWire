@@ -52,7 +52,7 @@ def clientThread(c, addr, meta_data):
 
 
 def send_meta(c, meta_data):
-    c.sendall((meta_data["timestamp"]))
+    c.sendall((meta_data["timestamp"]).encode())
     if (c.recv(1024).decode() == "ready"):
         payload = json.dumps(meta_data)
         c.sendall(payload.encode())
