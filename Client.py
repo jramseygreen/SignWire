@@ -8,6 +8,7 @@ class Client:
         self.meta_data = meta_data
         self.server_list = server_list
         self.port = 10000
+        self.driver()
 
 
     def driver(self):
@@ -22,7 +23,7 @@ class Client:
         for server in self.server_list:
             s.connect((server, self.port))
             s.sendall("meta_rq".encode())
-            if (s.recv(1024).decode() > self.meta_data["timestamp"]):
+            if (s.recv(1024) > self.meta_data["timestamp"]):
                 #update
                 s.sendall("ready".encode())
                 data=s.recv(1024).decode()

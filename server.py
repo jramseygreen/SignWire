@@ -25,7 +25,7 @@ class Server:
                 self.server_list.append(addr[0])
 
             print("accepted", c, addr)
-            x = threading.Thread(target=clientThread, args=(c, addr, self.meta_data, self.server_list))
+            x = threading.Thread(target=clientThread, args=(c, addr, self.meta_data))
             x.start()
 
 
@@ -52,7 +52,7 @@ def clientThread(c, addr, meta_data):
 
 
 def send_meta(c, meta_data):
-    c.sendall((meta_data["timestamp"]).encode())
+    c.sendall((meta_data["timestamp"]))
     if (c.recv(1024).decode() == "ready"):
         payload = json.dumps(meta_data)
         c.sendall(payload.encode())
