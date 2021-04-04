@@ -21,4 +21,7 @@ def pingpong() :
             f.write(s.recv(1024))
             f.close()
 
+        if (r=="sending meta"):
+            print(s.recv(1024).decode())
+
 pingpong()
