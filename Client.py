@@ -1,4 +1,5 @@
 import socket
+import json
 
 port = 10000
 ip = '192.168.0.31'
@@ -22,6 +23,12 @@ def pingpong() :
             f.close()
 
         if (r=="sending meta"):
-            print(s.recv(1024).decode())
+            s.sendall(("ready").encode())
+            data=s.recv(1024).decode()
+            #metaprint(data)
+            meta_data=json.loads(data)
+            #meta_data["test"]=4
+            print(meta_data)
 
+meta_data={}
 pingpong()
