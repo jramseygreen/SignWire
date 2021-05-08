@@ -1,65 +1,112 @@
+import glob
+import json
+import shutil
 import socket
 import threading
-import json
+import os
+import time
+
+import FileServer
+import Q
+import Meta_Manager
+import DirScanner
+import httpServer
 
 
-class Server:
-    def __init__(self, meta_data, server_list):
-        self.host = '0.0.0.0'
-        self.port = 10000
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.meta_data = meta_data
-        self.server_list = server_list
-        self.driver()
+class Node:
+    def __init__(self, hostname, port, cycle_time):
+        self.hostname = hostname
+        self.cycle_time = cycle_time
+        self.port = port
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.file_server = FileServer.FileServer(hostname, port + 1, self)
+        self.order_lock = threading.Lock()
+        self.meta_manager = Meta_Manager.Manager(self)
+        self.dir_scanner = DirScanner.DirScanner(self, "files")
+        self.http_server = httpServer.httpServer(port + 2)
 
+        self.sock.bind((hostname, port))
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-    def driver(self):
-        print(self.meta_data)
-        self.s.bind((self.host, self.port))
-        self.s.listen()
-        print("listening")
+    def start(self):
+        for subdir, dirs, files in os.walk("."):
+            if "files" in subdir or "html" in subdir:
+                for filename in files:
+                    os.remove(subdir + os.sep + filename)
 
+        self.file_server.start()
+        threading.Thread(target=self.listener).start()
+        self.sock.sendto("join".encode(), ('255.255.255.255', self.port))
+        print("sent join request")
+        #time.sleep(10)
+        self.dir_scanner.start()
+        self.http_server.start()
+        threading.Thread(target=self.html_displayer).start()
+        while False:
+            self.sock.sendto("join".encode(), ('255.255.255.255', self.port))
+            print("sent join request")
+            time.sleep(30)
+
+    def html_displayer(self):
+        print("cycling htmls")
+        content = '<style>html{height: 100%;margin: 0;}.bg {background-image: url("default.jpg");height: 100%; background-position: center;background-repeat: no-repeat;background-size: cover;}</style><div class="bg"></div>'
         while True:
-            c, addr = self.s.accept()
-            if addr[0] not in self.server_list:
-                self.server_list.append(addr[0])
+            try:
+                files = []
+                for file in os.listdir("html"):
+                    files.append(file)
+                    if ".html" in file:
+                        print("new display item")
+                        shutil.copy("html" + os.sep + file, "content.html")
+                        time.sleep(self.cycle_time)
+                if len(files) == 0:
+                    f = open("content.html", "r")
+                    if content != f.read():
+                        f = open ("content.html", "w")
+                        f.write(content)
+                        f.close()
 
-            print("accepted", c, addr)
-            x = threading.Thread(target=clientThread, args=(c, addr, self.meta_data))
-            x.start()
-
-
-
-def clientThread(c, addr, meta_data):
-    message = ""
-    while message != "quit":
-        message = c.recv(1024).decode()
-        print("message recieved is: ",message)
-        if message == "ping":
-            c.sendall(("pong").encode())
-
-        elif message == "meta_rq":
-            send_meta(c, meta_data)
-
-        elif message == "file_rq":
-            send_file(c)
-        #default
-        else:
-            c.sendall(("error").encode())
-
-    print("closed client", c, addr)
-    c.close()
+            except FileNotFoundError:
+                f = open("content.html", "w")
+                f.write(content)
+                f.close()
 
 
-def send_meta(c, meta_data):
-    c.sendall((meta_data["timestamp"]).encode())
-    if (c.recv(1024).decode() == "ready"):
-        payload = json.dumps(meta_data)
-        c.sendall(payload.encode())
 
-def send_file(c):
-    c.sendall(("sending file").encode())
-    if (c.recv(1024).decode() == "ready"):
-        f = open("test.txt", "rb")
-        c.sendall(f.read())
-        f.close()
+    def listener(self):
+        print("listener started")
+        while True:
+            data, addr = self.sock.recvfrom(2048)
+            if addr[0] != self.hostname:
+                threading.Thread(target=self.client_thread, args=(data, addr,)).start()
+
+    def client_thread(self, data, addr):
+        q = Q.Q()
+        q.push(data.decode().split('|'))
+
+        while not q.empty():
+            command = q.pop()
+            print(command)
+
+            if 'join' in command:
+                self.sock.sendto(("meta_data|" + self.meta_manager.get_json()).encode(), addr)
+
+            elif 'add' in command:
+                self.meta_manager.acquire(addr[0], self.port + 1, q.pop(), q.pop())
+
+            elif 'del' in command:
+                path = q.pop()
+                try:
+                    os.remove(path)
+                except:
+                    print("already removed",path)
+
+            elif 'meta_data' in command:
+                new_meta = json.loads(q.pop())
+
+                for md5 in new_meta:
+                    if not self.meta_manager.contains_md5(md5):
+                        for path in new_meta[md5]:
+                            self.meta_manager.acquire(addr[0], self.port + 1, md5, path)
+        #print(self.meta_manager.meta)
